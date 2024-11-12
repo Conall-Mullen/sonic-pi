@@ -1,50 +1,29 @@
-define :sequence_randomiser do |size|
-  t = Time.now.to_i % 100
-  use_random_seed t
-  
-  sequence = range 0, size, 1
-  
-  if one_in size / 2
-    set :sequence, sequence
-  else
-    set :sequence, sequence.shuffle
-  end
-end
+use_random_seed beat.to_i
 
-##| live_loop :rec do
-##|   steps = sync "/osc:127.0.0.1:63923/steps"
-##|   set :steps, steps
-##| end
+sequenceLength = 16
+set :sequence, Array.new(sequenceLength) { rand_i(0...sequenceLength - 1) }
 
 in_thread do
+  mySample = :loop_industrial
+  sequence = get[:sequence]
+  repeats = sequenceLength * rrand(1,4)
   live_loop :beat_slicer do
-    mySample = :loop_mehackit2
-    
-    sequence = get[:sequence]
-    
-    slice_index = sequence.tick
-    slice_size = 1 / sequence.length.to_f
-    slice_start = slice_index * slice_size
-    slice_finish = slice_start + slice_size
-    
-    sample mySample, start: slice_start, finish: slice_finish,beat_stretch: 4
-    sleep sample_duration mySample, start: slice_start, finish: slice_finish,beat_stretch: 4
-    
-    if slice_index == 7.0
-      sequence_randomiser 8
+    repeats.times do
+      slices = chopSample sequence.length, sequence.tick
+      sample mySample, start: slices[0], finish: slices[1],beat_stretch: 4
+      sleep sample_duration mySample, start: slices[0], finish: slices[1],beat_stretch: 4
     end
+    sequence = sequence.shuffle
+    print sequence
   end
 end
 
-##| in_thread do
-##|   live_loop :sampler do
-##|     steps = get[:steps]
-##|     phase_offset = rand(16)
-##|     folder_index = steps.tick.to_i + phase_offset.to_i
-##|     sync :beat_slicer
-##|     samps = "/Users/conallomaolain/Documents/Ableton/Sample Packs/Sample Pack 2"
-##|     sample samps , folder_index, decay: 0.1,decay_level: 0, release: 0, amp: 0
-##|     sleep 1 / steps.length.to_f
-##|   end
-##| end
+define :chopSample do |length,index|
+  num_of_slices = length
+  slice_index = index
+  slice_size = 1 / num_of_slices.to_f
+  slice_start = slice_index * slice_size
+  slice_finish = slice_start + slice_size
+  return slice_start, slice_finish
+end
 
